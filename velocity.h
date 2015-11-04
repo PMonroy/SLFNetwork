@@ -1,7 +1,7 @@
 #ifndef VELOCITY
 #define VELOCITY
 
-#include "parameters.h"
+#include "date.h"
 #include "vectorXYZ.h"
 
 /* Transformations: */
@@ -11,7 +11,7 @@
 #define MU(x)  log(fabs((1.0/cos(x))+tan(x))) // x must be in radians. Result value in radians
 #define THETA(x) 1.56864 -1.99805 * atan(exp(-1.0*(x))) // x must be in radians. Result value in radians
 
-/* Structures */
+/* Structures: Esta estructura tiene que ser interna a velocity.cpp */
 struct  vectorIJK {
     int i;
     int j;
@@ -19,10 +19,10 @@ struct  vectorIJK {
 };
 
 /* FUNCTIONS */
-int LoadVelocityGrid(date reference_date);
+int LoadVelocityGrid(date reference_date, char velocitydir[]);
 void FreeMemoryVelocityGrid();
-int LoadVelocities(date start_date, int tau);// This function read the 2D velocity field since start_date to start_date+tau in a constant depth (layer_index)
-void FreeMemoryVelocities();
+int LoadVelocities(date start_date, int tau, char velocitydir[]);// This function read the 2D velocity field since start_date to start_date+tau in a constant depth (layer_index)
+void FreeMemoryVelocities(int tau);
 
 int GetLonIndex(double latitude);
 int GetLatIndex(double longitude);

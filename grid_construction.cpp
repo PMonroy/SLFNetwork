@@ -11,8 +11,38 @@
 using namespace std;
 
 #include "parameters.h" // Function to read parameters.dat
+#include "ioutil.h"
 #include "velocity.h" // Function to read velocities 
 #include "VTK.h"
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// Declaring constants and extern variables
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+extern int verbose;
+extern double nodesize;
+extern double particlespacing;
+extern double startdepth;
+extern double finaldepth;
+extern date reference_date;
+
+extern double network_ll_lat;
+extern double network_ll_lon;
+extern double network_tr_lat;
+extern double network_tr_lon;
+
+// these parameters are used to name files. Better do this once time in paramters.cpp and use the name files directly 
+extern char velocitydir[];
+extern string filename_upnetwork;
+extern string filename_downnetwork;
+extern string filename_itracer;
+
+//extern enum enum_parameters;
+
+double pig=acos(-1.0);
+double pig180=(pig/180.0);
 
 // structures
 
@@ -26,17 +56,6 @@ struct rectangle {
 vector<rectangle> upnode;
 vector<rectangle> downnode;
 
-// Parameters
-//const double pig = 3.14159265358;
-//const double pig180 = (pig/180.);
-
-// Directories Outputs
-//char const output_dir[] = "./";
-
-// File names Outputs
-//const string postfixgrid = ".grid";
-//const string postfixtracer = ".trac";
-
 // total number of nodes
 int num_nodes=0; 
 
@@ -45,14 +64,11 @@ int num_nodes=0;
 double points_long_vec;
 double points_lat_vec;
 
-//Functions
-string DoubletoInt(int ndigits, int ndecimals, double number);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MAIN CODE
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // This function prints a little command line manual if there are invalid parameters 
 void print_usage(const string me) 
@@ -67,14 +83,6 @@ int main( int argc, char *argv[] )
   double latmin,latmax;
   double lonmin,lonmax;
   double delta_lon, delta_lat;
-  string sdomain_network;
-  string snum_nodes;
-  string snum_tracers;
-  string svelocity_field;
-  string sdepth;
-  string snode_size; 
-  string sparticle_latspacing;
-
 
   // READ COMMAND LINE ARGUMENTS:
   // Usage in command line when executing: ./(path executable) (path to parameters file) 
@@ -100,53 +108,35 @@ int main( int argc, char *argv[] )
       return 1;
     }
 
- // Reading the velocity field and longitude and latitude in the velocity file correponds to start_date
-  if(LoadVelocityGrid(reference_date)!=0)
+ // Reading the velocity field and longitude and latitude in the velocity file correponds to startdate
+  if(LoadVelocityGrid(reference_date,velocitydir)!=0)
     cout << "Error in reading velocities"<< endl;
   
-
+  /* VTK OUTPUT */
   string name_VTKfile_bathymetry="bathymetry.vtk";
 
-  MakeVTKStructuredGrid2D(vgrid_lon, vgrid_lat, start_depth, bathymetry, nlon, nlat, name_VTKfile_bathymetry );
+  MakeVTKStructuredGrid2D(vgrid_lon, vgrid_lat, startdepth, bathymetry, nlon, nlat, name_VTKfile_bathymetry );
 
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  ///////////////////////////////  CONSTRUCTION of NETWORK GRID ///////////////////////////////////////////////////////
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // CONSTRUCTION of NETWORK GRID                                                                               //
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   if(verbose == 1) // Print screen for debugging
     {
       cout <<"GRID CONSTRUCTION PARAMETERS:"<<endl; 
-      cout << " Grid step is:"<< node_size<<endl;
+      cout << " Grid step is:"<< nodesize<<endl;
       cout << " Low left grid corner (lat,long)=(" << network_ll_lat << "," << network_ll_lon << ")"<<endl;
       cout << " Top right grid corner (lat,long)=(" << network_tr_lat << "," << network_tr_lon << ")"<<endl;
     }
 
+
+  ofstream ofile_upnetwork;
   // opening output files
-  ofstream file_output_network;
-  string name_output_network;
-
-  // Naming convention (according to parameters) for output files
-  char buffer[50];
-
-  sprintf(buffer, "networkdomain%d", domain_network);
-  sdomain_network = buffer;
-
-  sprintf(buffer, "_vflow%d", velocity_field);
-  svelocity_field=buffer;
-
-  sdepth="_depth";
-
-  snode_size="_nodesize";
-
-  name_output_network=
-    output_dir + 
-    sdomain_network + 
-    svelocity_field + 
-    sdepth + DoubletoInt(4, 0, start_depth) +
-    snode_size + DoubletoInt(4, 3,node_size) + 
-    postfixgrid;
-  
-  file_output_network.open(name_output_network.c_str());
+  if(FileExist(filename_upnetwork.c_str()))
+    {
+      cout << "el archivo existe"<<endl;
+    }  
+  ofile_upnetwork.open(filename_upnetwork.c_str());
 
   ////////////////////////////////////////////////////////////////////////
   ////////// Computing center of nodes with 2 loops ////////////////////// 
@@ -162,7 +152,7 @@ int main( int argc, char *argv[] )
 
   int capacity_node;
   
-  capacity_node = ((network_tr_lat-network_ll_lat)*(network_tr_lon-network_ll_lon)) /(node_size*node_size);
+  capacity_node = ((network_tr_lat-network_ll_lat)*(network_tr_lon-network_ll_lon)) /(nodesize*nodesize);
 
   upnode.reserve(capacity_node);//reserve space for allocation, it reduces the execution time
 
@@ -170,12 +160,12 @@ int main( int argc, char *argv[] )
   // Low left corner of network grid = (network_ll_lat,network_ll_lon)
   // Top right center of network grid = (latmax,lonmax)
   // Low left center of network grid = (latmin,lonmin) 
-  delta_lat = node_size;
+  delta_lat = nodesize;
   latmin = network_ll_lat + (delta_lat/2.0);
   latmax = network_tr_lat - (delta_lat/2.0);
   for(lat=latmin; lat<latmax; lat+=delta_lat)
     {
-      delta_lon=node_size/(cos(lat*pig180));
+      delta_lon=nodesize/(cos(lat*pig180));
       lonmin = network_ll_lon + (delta_lon/2.0);
       lonmax = network_tr_lon - (delta_lon/2.0);
       
@@ -190,16 +180,16 @@ int main( int argc, char *argv[] )
 	  upnode.push_back(rectangle());
 	  upnode[num_nodes].center.x = lon;
 	  upnode[num_nodes].center.y = lat;
-	  upnode[num_nodes].center.z = start_depth;
+	  upnode[num_nodes].center.z = startdepth;
 
 	  // finding two corners of the node from the center
 	  upnode[num_nodes].ll.x = lon - delta_lon/2.0;
 	  upnode[num_nodes].ll.y = lat - delta_lat/2.0;
-	  upnode[num_nodes].ll.z = start_depth;
+	  upnode[num_nodes].ll.z = startdepth;
 
 	  upnode[num_nodes].tr.x = lon + delta_lon/2.0;
 	  upnode[num_nodes].tr.y = lat + delta_lat/2.0;
-	  upnode[num_nodes].tr.z = start_depth;
+	  upnode[num_nodes].tr.z = startdepth;
 	  
 	  // co-locate the coordinate of the node in the grid of the velocity field  
 	  // Lower left corner, outside
@@ -219,7 +209,7 @@ int main( int argc, char *argv[] )
 		{
 
 		  //test if missing value (1.e+20 = missing values for MyOcean)
-		  if(start_depth < bathymetry[i][j])
+		  if(startdepth < bathymetry[i][j])
 		    { 
 		      land++;
 		    }
@@ -231,12 +221,12 @@ int main( int argc, char *argv[] )
 	  upnode[num_nodes].land_ratio = ((double) land)/((double) point);
 			    
 	  // For each node (1 node = 1 line in output file): write lon, lat of node center + longitude extension + land ratio
-	  file_output_network << upnode[num_nodes].center.x << " " << upnode[num_nodes].center.y << " " << delta_lon << " " << upnode[num_nodes].land_ratio << endl;
+	  ofile_upnetwork << upnode[num_nodes].center.x << " " << upnode[num_nodes].center.y << " " << delta_lon << " " << upnode[num_nodes].land_ratio << endl;
 	  num_nodes++;
 	}
     }
 
-  file_output_network.close();
+  ofile_upnetwork.close();
 
   // Print out total number of nodes if verbose = 1 
   if(verbose == 1)
@@ -246,28 +236,16 @@ int main( int argc, char *argv[] )
       cout <<" Capacity nodes <vector>: "<< upnode.capacity() << endl;   
     }
 
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  ////////////////////////////////////////////  CONSTRUCTION of FINAL NETWORK //////////////////////////
-  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //  CONSTRUCTION of FINAL NETWORK          
+  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   // opening output files
-  ofstream file_output_final_network;
-  string name_output_final_network;
-
-  name_output_final_network=
-    output_dir + 
-    sdomain_network + 
-    svelocity_field + 
-    sdepth + DoubletoInt(4, 0, final_depth) +
-    snode_size + DoubletoInt(4, 3,node_size) + 
-    postfixgrid;
-  
-  file_output_final_network.open(name_output_final_network.c_str());
+  ofstream ofile_downnetwork;
+  ofile_downnetwork.open(filename_downnetwork.c_str());
 
   int q;
-
   downnode.reserve(capacity_node);//reserve space for allocation, it reduces the execution time
-
   for(q=0; q<num_nodes; q++)
     {
 	  
@@ -279,9 +257,9 @@ int main( int argc, char *argv[] )
       downnode.push_back(rectangle());
       downnode[q] = upnode[q];
       
-      upnode[num_nodes].center.z = final_depth;
-      upnode[num_nodes].ll.z = final_depth;
-      upnode[num_nodes].tr.z = final_depth;
+      upnode[num_nodes].center.z = finaldepth;
+      upnode[num_nodes].ll.z = finaldepth;
+      upnode[num_nodes].tr.z = finaldepth;
       
       // co-locate the coordinate of the node in the grid of the velocity field  
       // Lower left corner, outside
@@ -301,7 +279,7 @@ int main( int argc, char *argv[] )
 		{
 
 		  //test if missing value (1.e+20 = missing values for MyOcean)
-		  if(final_depth < bathymetry[i][j])
+		  if(finaldepth < bathymetry[i][j])
 		    { 
 		      land++;
 		    }
@@ -313,31 +291,18 @@ int main( int argc, char *argv[] )
 	  downnode[q].land_ratio = ((double) land)/((double) point);
 			    
 	  // For each node (1 node = 1 line in output file): write lon, lat of node center + longitude extension + land ratio
-	  file_output_final_network << downnode[q].center.x << " " << downnode[q].center.y << " " <<  downnode[q].tr.x-downnode[q].ll.x << " " << downnode[q].land_ratio << endl;
+	  ofile_downnetwork << downnode[q].center.x << " " << downnode[q].center.y << " " <<  downnode[q].tr.x-downnode[q].ll.x << " " << downnode[q].land_ratio << endl;
     }
 
-  file_output_final_network.close();
+  ofile_downnetwork.close();
 
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   ////////////////////////////////////////////  CONSTRUCTION of INITIAL POSITIONS OF TRACERS //////////////////////////
   /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
   // opening output files
-  ofstream file_output_tracer;
-  string name_output_tracer;
-
-  sparticle_latspacing = "_particlelatspacing";
- 
-  //Name output file for initial positions of tracers
-  name_output_tracer = 
-    output_dir + 
-    sdomain_network +
-    svelocity_field + 
-    sdepth + DoubletoInt(4, 0, start_depth) +
-    sparticle_latspacing + DoubletoInt(5,4,particle_latspacing) + 
-    postfixitracer;
-  
-  file_output_tracer.open(name_output_tracer.c_str());
+  ofstream ofile_itracer;
+  ofile_itracer.open(filename_itracer.c_str());
 
   ////////////////////////////////////////////////////////////////////////
   ////// Computing tracer initial position with 2 loops //////////////////
@@ -346,7 +311,7 @@ int main( int argc, char *argv[] )
   // Start/end seeding tracers
   latmin = network_ll_lat;
   latmax = network_tr_lat;
-  delta_lat = particle_latspacing;
+  delta_lat = particlespacing;
 
   lonmin = network_ll_lon;
   lonmax = network_tr_lon;
@@ -354,7 +319,7 @@ int main( int argc, char *argv[] )
   if(verbose == 1) // Print screen for debugging
     {
       cout <<"TRACERS CONSTRUCTION PARAMETERS:"<<endl; 
-      cout << " Particle latspacing:"<< particle_latspacing <<endl;
+      cout << " Particle latspacing:"<< particlespacing <<endl;
       cout << " Low left grid corner (lat,long)=(" << latmin << "," << lonmin << ")"<<endl;
       cout << " Top right grid corner (lat,long)=(" << latmax << "," << lonmax << ")"<<endl;
     }
@@ -363,7 +328,7 @@ int main( int argc, char *argv[] )
   for(lat=latmin; lat<latmax; lat+=delta_lat)
     {
       
-      delta_lon=particle_latspacing/(cos(lat*pig180));         
+      delta_lon=particlespacing/(cos(lat*pig180));         
 
       for(lon=lonmin; lon<lonmax; lon+=delta_lon)
 	{
@@ -381,18 +346,19 @@ int main( int argc, char *argv[] )
 	  j_tr = j_ll + 1;
 	  
 	  // initialize tracer only if there at least 1 or more nearest neighboors with velocity (no initialization when 4 neighboors = NaN) 
-	  if((start_depth >= bathymetry[i_ll][j_ll]) || 
-	     (start_depth >= bathymetry[i_ll][j_tr]) || 
-	     (start_depth >= bathymetry[i_tr][j_ll]) || 
-	     (start_depth >= bathymetry[i_tr][j_tr]))
+	  if((startdepth >= bathymetry[i_ll][j_ll]) || 
+	     (startdepth >= bathymetry[i_ll][j_tr]) || 
+	     (startdepth >= bathymetry[i_tr][j_ll]) || 
+	     (startdepth >= bathymetry[i_tr][j_tr]))
 	    {
 	      // Print out initial positions (lat, lon) of tracers (1 line per particle in output files) 
-	      file_output_tracer << lon << " " << lat << endl;
+	      ofile_itracer << lon << " " << lat << endl;
 	      num_tracers++;
 	    }
 	}
     }
-  file_output_tracer.close();
+  ofile_itracer.close();
+
   // Print out total number of particles if verbose = 1 
   if(verbose==1)
     {
@@ -402,19 +368,5 @@ int main( int argc, char *argv[] )
   FreeMemoryVelocityGrid();
 
   return 0;
-}
-
-string DoubletoInt(int ndigits, int ndecimals, double number)
-{
-  ostringstream stream;// it needs to include  <sstream>
-  double factor=pow(10,ndecimals); // it needs to include <cmath>
-
-  stream << fixed; //it needs to include <iostream>
-
-  stream << setfill('0') << setw(ndigits);
-
-  stream << setprecision(0) << (abs(number)*factor);
-  
-  return stream.str();
 }
 

@@ -3,9 +3,9 @@
 #################################################################################
 # 1) Domain of the network (lowleft_lat, lowleft_lon, topright_lat,  topright_lon)
 # Whole: domain_network=1 -> (30.2325,−5.955,45.8925,36.205)
-domain_network=1
+networkdomain=1
 # 2) Velocity field (1 = Benguela ROMS 1/12)
-velocity_field=1
+vflow=1
 # 3) Verbose flag (0 = no print ; 1 = info printed on screen)
 verbose=1
 #################################################################################
@@ -13,16 +13,16 @@ verbose=1
 # SPECIFIC PARAMETERS
 #################################################################################
 # 4) Node latitudinal size (in decimal degree)
-node_size=0.125
+nodesize=0.125
 # 5) Latitudinal spacing of particles seeding 
-particle_latspacing=0.01
+particlespacing=0.01
 # 6) Initial depth (meters)
-start_depth=25
+startdepth=25
 # 7) Final depth (meters)
-final_depth=1000
-# 8) start_date = starting date of experiment (dd-mm-yyyy)
-start_date=01-01-0009
+finaldepth=1000
+# 8) startdate = starting date of experiment (dd-mm-yyyy)
+startdate=01-01-0009
 # 10) Integration time step (in days)
-int_step=0.25
+intstep=0.25
 # 11) Sinking Velocity (in meters/days, downwards)
-vsinking=50
+vsink=50

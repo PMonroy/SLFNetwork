@@ -1,66 +1,61 @@
-#include <cstdlib>
 #include <iostream>
-#include <fstream>
-#include <cstring>
+#include <iomanip>
 #include <ctime>  
-#include <cmath>  
+#include <cstdlib>
+#include <cstdio>
+#include <cmath>
+#include <vector>
+#include <fstream>
+#include <sstream>
+#include <string>
 
 using namespace std;
 #include "parameters.h"
+#include "ioutil.h"
 
-enum { /* 0 */ DOMAIN_NETWORK,
-       /* 1 */ VELOCITY_FIELD,
-       /* 2 */ VERBOSE,
-       /* 3 */ NODE_SIZE,
-       /* 4 */ PARTICLE_LATSPACING,
-       /* 5 */ START_DEPTH,
-       /* 6 */ FINAL_DEPTH,       
-       /* 7 */ START_DATE,
-       /* 8 */ INT_STEP,
-       /* 9  */ V_SINKING,
-       NPARAMETERS
-};
+string pname[NPARAMETERS];
+string ptype[NPARAMETERS];
 
-int domain_network;
-int land_sea_norm;
-int velocity_field;
+int networkdomain;
+int vflow;
 int verbose;
-double node_size;
-double particle_latspacing;
-double start_depth;
-double final_depth;
-date start_date;
+double nodesize;
+double particlespacing;
+double startdepth;
+double finaldepth;
+date startdate;
 int tau;// it not needed to give a value
-double int_step;
-double v_sinking;
+double intstep;
+double vsink;
 
 /* Network  domain:*/
-
 double network_ll_lat;
 double network_ll_lon;
 double network_tr_lat;
 double network_tr_lon;
 
-/* Constants*/
-const double pig = 3.14159265358;
-const double pig180 = (pig/180.);
-
 /* Configuration parameters*/
+char workingdir[] = "./";
 
-const char output_dir[] = "./";
-const char input_dir[] = "./";
+// File names In/Outputs
+string filename_upnetwork;
+string filename_downnetwork;
+string filename_itracer;
+string filename_ftracer;
+string filename_matrix;
 
-// File names Outputs
-const string postfixgrid = ".grid";
-const string postfixitracer = ".itrac";
-const string postfixftracer = ".ftrac";
-const string postfixmatrix = ".matrix";
+string infix = "_";
+string postfixgrid = ".grid";
+string postfixitracer = ".itrac";
+string postfixftracer = ".ftrac";
+string postfixmatrix = ".matrix";
 
-char const ncdir[] = "/data/geo/escola/roms_benguela/";
+char velocitydir[] = "/data/geo/escola/roms_benguela/";
 date reference_date = {8,  //year
 		       1,  //month
 		       1,  //day
 };
+
 void listofparameters(string pname[], string ptype[])
 {
   int parameter;
@@ -85,8 +80,6 @@ int readparams(string nfileparameters)
   int *pflag;
 
   int parameter;
-  string pname[NPARAMETERS];
-  string ptype[NPARAMETERS];
   
   if (!fparameters.is_open())
     {
@@ -96,16 +89,16 @@ int readparams(string nfileparameters)
 
   pflag = (int*) calloc (NPARAMETERS,sizeof(int));
 
-  pname[DOMAIN_NETWORK]="domain_network";           ptype[DOMAIN_NETWORK]="int";
-  pname[VELOCITY_FIELD]="velocity_field";           ptype[VELOCITY_FIELD]="int"; 
+  pname[NETWORKDOMAIN]="networkdomain";           ptype[NETWORKDOMAIN]="int";
+  pname[VFLOW]="vflow";           ptype[VFLOW]="int"; 
   pname[VERBOSE]="verbose";                         ptype[VERBOSE]="int"; 
-  pname[NODE_SIZE]="node_size";                     ptype[NODE_SIZE]="double"; 
-  pname[PARTICLE_LATSPACING]="particle_latspacing"; ptype[PARTICLE_LATSPACING]="double"; 
-  pname[START_DEPTH]="start_depth";                 ptype[START_DEPTH]="double"; 
-  pname[FINAL_DEPTH]="final_depth";                 ptype[FINAL_DEPTH]="double"; 
-  pname[START_DATE]="start_date";                   ptype[START_DATE]="int-int-int";
-  pname[INT_STEP]="int_step";                       ptype[INT_STEP]="double"; 
-  pname[V_SINKING]="vsinking";                     ptype[V_SINKING]="double"; 
+  pname[NODESIZE]="nodesize";                     ptype[NODESIZE]="double"; 
+  pname[PARTICLESPACING]="particlespacing"; ptype[PARTICLESPACING]="double"; 
+  pname[STARTDEPTH]="startdepth";                 ptype[STARTDEPTH]="double"; 
+  pname[FINALDEPTH]="finaldepth";                 ptype[FINALDEPTH]="double"; 
+  pname[STARTDATE]="startdate";                   ptype[STARTDATE]="int-int-int";
+  pname[INTSTEP]="intstep";                       ptype[INTSTEP]="double"; 
+  pname[VSINK]="vsink";                     ptype[VSINK]="double"; 
 
   while(!fparameters.eof())
     {
@@ -140,42 +133,42 @@ int readparams(string nfileparameters)
 		 }
 	       switch (parameter) 
 		{
-		case DOMAIN_NETWORK:{
-		  domain_network = atoi(value.c_str());}
+		case NETWORKDOMAIN:{
+		  networkdomain = atoi(value.c_str());}
 		  break;
-		case VELOCITY_FIELD:
-                  velocity_field = atoi(value.c_str());
+		case VFLOW:
+                  vflow = atoi(value.c_str());
 		  break;
 		case VERBOSE:
 		  verbose = atoi(value.c_str());
 		  break;
-		case NODE_SIZE:
-		  node_size = atof(value.c_str());
+		case NODESIZE:
+		  nodesize = atof(value.c_str());
 		  break;
-		case PARTICLE_LATSPACING:
-		  particle_latspacing = atof(value.c_str());
+		case PARTICLESPACING:
+		  particlespacing = atof(value.c_str());
 		  break;
-		case START_DEPTH:
-		  start_depth = atof(value.c_str());
-		  start_depth = (-1.0)*start_depth;
+		case STARTDEPTH:
+		  startdepth = atof(value.c_str());
+		  startdepth = (-1.0)*startdepth;
 		  break;
-		case FINAL_DEPTH:
-		  final_depth = atof(value.c_str());
-		  final_depth = (-1.0)*final_depth;
+		case FINALDEPTH:
+		  finaldepth = atof(value.c_str());
+		  finaldepth = (-1.0)*finaldepth;
 		  break;
-		case START_DATE:
-		  if(sscanf(value.c_str(),"%u-%u-%u",&start_date.day,&start_date.month,&start_date.year)!=3)
+		case STARTDATE:
+		  if(sscanf(value.c_str(),"%u-%u-%u",&startdate.day,&startdate.month,&startdate.year)!=3)
 		    {
-		      cout  << me << ": Date format in start_date is incorrect" << endl;
+		      cout  << me << ": Date format in startdate is incorrect" << endl;
 		      listofparameters(pname, ptype);
 		      return 1;
 		    }
 		  break;
-		case INT_STEP:
-		  int_step = atof(value.c_str());
+		case INTSTEP:
+		  intstep = atof(value.c_str());
 		  break;
-		case V_SINKING:
-		  v_sinking = atof(value.c_str());
+		case VSINK:
+		  vsink = atof(value.c_str());
 		  break;  
 		default:
 		  cout  << me << ": Unknown parameter "<< name <<endl ;
@@ -201,29 +194,84 @@ int readparams(string nfileparameters)
 	      listofparameters(pname, ptype);
 	      return 1;
 	    }
-	}
-
-  tau = 1 + (int) ((2*fabs(final_depth-start_depth))/(v_sinking));
-  /* VERBOSE */
-  if(verbose == 1)
-    {
-      cout << "PARAMETERS FROM FILE: "<< nfileparameters <<endl; 
-      cout << " domain_network = "<<domain_network << endl; 
-      cout << " velocity_field = "<<velocity_field<< endl ;
-      cout << " verbose = "<< verbose<< endl;
-      cout << " node_size = "<< node_size<< endl;
-      cout << " particle_latspacing = "<<particle_latspacing<<endl ;
-      cout << " start_depth = "<<start_depth<<endl;
-      cout << " final_depth = "<<final_depth<<endl;
-      cout << " start_date = "<< start_date.day<<"-"<<start_date.month<<"-"<<start_date.year<<endl ;
-      cout << " tau = "<<tau<< endl ;
-      cout << " int_step = "<<int_step<< endl ;
-      cout << " v_sinking = "<<v_sinking<< endl ;
-    }
-  
+	}  
   fparameters.close();
 
-  switch(velocity_field) {
+
+  // COMPUTE DERIVED PARAMETERS
+
+  //TAU
+  tau = 1 + (int) ((2*fabs(finaldepth-startdepth))/(vsink));
+
+  //NAME FILES
+
+  //Name file for up network 
+  string sdepth = pname[STARTDEPTH];
+  sdepth.erase(0,5);
+
+  filename_upnetwork=
+    workingdir + 
+    pname[NETWORKDOMAIN] + DoubletoString(1, 0, (double) networkdomain) + infix +
+    pname[VFLOW] + DoubletoString(1,0, (double) vflow) + infix +
+    sdepth + DoubletoString(4, 0, startdepth) +  infix +
+    pname[NODESIZE] + DoubletoString(4, 3,nodesize) + 
+    postfixgrid;
+
+  //Name file for down network 
+
+  filename_downnetwork=
+    workingdir + 
+    pname[NETWORKDOMAIN] + DoubletoString(1, 0, (double) networkdomain) + infix +
+    pname[VFLOW] + DoubletoString(1,0, (double) vflow) + infix +
+    sdepth + DoubletoString(4, 0, finaldepth) +  infix +
+    pname[NODESIZE] + DoubletoString(4, 3,nodesize) + 
+    postfixgrid;
+
+  //Name file for initial positions of tracers
+
+  filename_itracer = 
+    workingdir + 
+    pname[NETWORKDOMAIN] + DoubletoString(1, 0, (double) networkdomain) + infix +
+    pname[VFLOW] +  DoubletoString(1, 0, (double)vflow) + infix +
+    sdepth + DoubletoString(4, 0, startdepth) + infix +
+    pname[PARTICLESPACING] + DoubletoString(5,4,particlespacing) + 
+    postfixitracer;
+
+//Name file for initial positions of tracers
+
+  filename_ftracer = 
+    workingdir + 
+    pname[NETWORKDOMAIN] + DoubletoString(1,0,(double) networkdomain) + infix +
+    pname[VFLOW] +  DoubletoString(1,0,(double) vflow) + infix +
+    pname[STARTDEPTH] + DoubletoString(4, 0, startdepth) + infix +
+    pname[FINALDEPTH] + DoubletoString(4, 0, finaldepth) + infix +
+    pname[PARTICLESPACING] + DoubletoString(5,4,particlespacing) + infix +
+    pname[STARTDATE] + DoubletoString(2,0,(double) startdate.day)
+                     + DoubletoString(2,0,(double) startdate.month)
+                     + DoubletoString(4,0,(double) startdate.year) + infix +
+    pname[VSINK]+ DoubletoString(3,0,vsink) + infix +
+    pname[INTSTEP] +  DoubletoString(4,2,intstep) +
+    postfixftracer;
+
+//Name file for initial positions of tracers
+
+  filename_matrix = 
+    workingdir + 
+    pname[NETWORKDOMAIN] + DoubletoString(1,0,(double) networkdomain) + infix +
+    pname[VFLOW] +  DoubletoString(1,0,(double) vflow) + infix +
+    pname[STARTDEPTH] + DoubletoString(4, 0, startdepth) + infix +
+    pname[FINALDEPTH] + DoubletoString(4, 0, finaldepth) + infix +
+    pname[PARTICLESPACING] + DoubletoString(5,4,particlespacing) + infix +
+    pname[NODESIZE] + DoubletoString(4, 3,nodesize) + infix +
+    pname[STARTDATE] + DoubletoString(2,0,(double) startdate.day)
+                     + DoubletoString(2,0,(double) startdate.month)
+                     + DoubletoString(4,0,(double) startdate.year) + infix +
+    pname[VSINK]+ DoubletoString(3,0,vsink) + infix +
+    pname[INTSTEP] +  DoubletoString(4,2,intstep) +
+    postfixmatrix;
+
+
+  switch(vflow) {
   case 1:
     {
       //degree_resolution = 0.0625; // 1/16 degrees
@@ -231,7 +279,7 @@ int readparams(string nfileparameters)
     break;
     default: 
        {
-	 cout << "Incorrect value of velocity_field variable"<<endl ;
+	 cout << "Incorrect value of vflow variable"<<endl ;
 	 listofparameters(pname, ptype);
 	 return 1;
        }
@@ -246,7 +294,7 @@ int readparams(string nfileparameters)
 	 /* 4 */ SOUTH_SUBDOMAIN,
   };
 
-    switch(domain_network) {
+    switch(networkdomain) {
     case WHOLE_DOMAIN:
       {
 	network_ll_lat= -35.6495;
@@ -281,14 +329,31 @@ int readparams(string nfileparameters)
       break;
      default: 
        {
-	 cout << "Incorrect value of domain_network variable"<<endl ;
+	 cout << "Incorrect value of networkdomain variable"<<endl ;
 	 listofparameters(pname, ptype);
 	 return 1;
        }
     }
 
-    //deallocate memory:
 
+    /* VERBOSE */
+    if(verbose == 1)
+      {
+	cout << "PARAMETERS FROM FILE: "<< nfileparameters <<endl; 
+	cout << " networkdomain = "<<networkdomain << endl; 
+	cout << " vflow = "<<vflow<< endl ;
+	cout << " verbose = "<< verbose<< endl;
+	cout << " nodesize = "<< nodesize<< endl;
+	cout << " particlespacing = "<<particlespacing<<endl ;
+	cout << " startdepth = "<<startdepth<<endl;
+	cout << " finaldepth = "<<finaldepth<<endl;
+	cout << " startdate = "<< startdate.day<<"-"<<startdate.month<<"-"<<startdate.year<<endl ;
+	cout << " tau = "<<tau<< endl ;
+	cout << " intstep = "<<intstep<< endl ;
+	cout << " vsink = "<<vsink<< endl ;
+      }
+    
+    //deallocate memory:
     free (pflag);
     return 0;
 }

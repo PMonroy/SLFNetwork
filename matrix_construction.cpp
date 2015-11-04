@@ -9,30 +9,36 @@
 
 using namespace std;
 #include "parameters.h" // Function to read parameters.dat
+#include "ioutil.h" 
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// Declaring constants and extern variables
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+extern int verbose;
+extern double nodesize;
+extern double finaldepth;
+extern int tau;
+extern double network_ll_lat;
+extern double network_ll_lon;
+extern double network_tr_lat;
+extern double network_tr_lon;
+
+extern string filename_upnetwork;
+extern string filename_downnetwork;
+extern string filename_itracer;
+extern string filename_ftracer;
+extern string filename_matrix;
+
+double pig=acos(-1.0);
+double pig180=(pig/180.0);
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////// Prototype-functions used in the main code (written below, at the end of the main code)
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 void print_usage(const string me);
-int countlines(string namefile);
-
-string DoubletoInt(int ndigits, int ndecimals, double number);
-
-/////////////////////////////////////////////////////////////////////////////////////////////////
-// Declaring constant and global variables
-/////////////////////////////////////////////////////////////////////////////////////////////////
-
-//const double pig = 3.14159265358; 
-//const double deg2rad = pig / 180.;
-
-//const string input_dir = "/home/merluza/shared/";
-//const string output_dir = "/home/merluza/shared/";
-
-// File names Outputs
-//const string postfixgrid = ".grid";
-//const string postfixtracer = ".trac";
-//const string postfixmatrix = ".matrix";
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // MAIN CODE 
@@ -44,14 +50,14 @@ int main( int argc, char *argv[] )
   // Usage in command line when executing: ./(path executable) (path to parameters file) 
   // (ex. ./grid_construction.out parameters.dat)
   if (2 != argc) 
-    {
-      // If it is not specified the path to parameters file
-      cout << "Parameter file not specified" << endl; // Show a error message  
-      string me=argv[0];
-      print_usage(me); // and a usage reminder (me = name of executable) 
-      return 1;
-    }
-
+  {
+    // If it is not specified the path to parameters file
+    cout << "Parameter file not specified" << endl; // Show a error message  
+    string me=argv[0];
+    print_usage(me); // and a usage reminder (me = name of executable) 
+    return 1;
+  }
+  
   // READ PARAMETERS FROM FILE
   string fnameparameters = argv[1]; // Path to parameters file = Second argument in the command line 
   if(readparams(fnameparameters)==1)
@@ -63,34 +69,8 @@ int main( int argc, char *argv[] )
 
   //////////////////// READ TRACERS INITIAL POSITIONS //////////////////
 
-  string sdomain_network;
-  string svelocity_field;
-  string sdepth;
-  string sparticle_latspacing;
-  string sfile_initial_tracers;
-  char buffer[50];
-
-  sprintf(buffer, "networkdomain%d", domain_network);
-  sdomain_network = buffer;
-
-  sprintf(buffer, "_vflow%d", velocity_field);
-  svelocity_field=buffer;
-
-  sdepth="_depth";
-
-  sparticle_latspacing = "_particlelatspacing";
-
-  // Reconstruct name file
-  sfile_initial_tracers = 
-    input_dir + 
-    sdomain_network +
-    svelocity_field + 
-    sdepth + DoubletoInt(4,0,start_depth) + 
-    sparticle_latspacing + DoubletoInt(5,4,particle_latspacing) +
-    postfixitracer; 
-
   // Count number of lines = total number of lagrangian particles
-  int num_itracers=countlines(sfile_initial_tracers);
+  int num_itracers=CountLines(filename_itracer.c_str());
   if(num_itracers < 0)
     {
       cout << "ERROR in counting lines" << endl;
@@ -110,47 +90,21 @@ int main( int argc, char *argv[] )
   itracer_lat = new double [num_itracers];
 
   // open tracer file 
-  ifstream file_initial_tracers(sfile_initial_tracers.c_str());// open tracer file 
-
+  ifstream ifile_itracer(filename_itracer.c_str());// open tracer file 
+  
   int i;
 
   // Read initial positions of particles 
   for(i=0; i<num_itracers; i++)
     {
-      file_initial_tracers >> itracer_lon[i] >> itracer_lat[i];
+      ifile_itracer >> itracer_lon[i] >> itracer_lat[i];
     }
-  file_initial_tracers.close();
+  ifile_itracer.close();
 
  //////////////////// READ TRACERS FINAL POSITIONS //////////////////
-  string sstart_date;
-  string stau;
-  string sint_step;
-  string sfile_final_tracers; 
-
-  string sidepth = "_idepth";
-  string sfdepth = "_fdepth";
-  string svsinking = "_vsinking";
-
-  sstart_date="_startdate";
-  sprintf(buffer, "_tau%d", (int) tau);
-  stau=buffer;
-  sint_step = "_intstep";
-  
-  // Reconstruct name file
-  sfile_final_tracers = 
-     output_dir + 
-    sdomain_network +
-    svelocity_field + 
-    sidepth + DoubletoInt(4, 0, start_depth) + 
-    sfdepth + DoubletoInt(4, 0, final_depth) + 
-    sparticle_latspacing + DoubletoInt(5,4,particle_latspacing) +
-    sstart_date + DoubletoInt(2,0,start_date.day) + DoubletoInt(2,0,start_date.month) + DoubletoInt(4,0,start_date.year) +
-    svsinking + DoubletoInt(3,0,v_sinking) +
-    sint_step +  DoubletoInt(4,2,int_step) +
-    postfixftracer;
   
   // Count number of lines = total number of lagrangian particles
-  int num_ftracers=countlines(sfile_final_tracers);
+  int num_ftracers=CountLines(filename_ftracer.c_str());
   if(num_ftracers < 0)
     {
       cout << "ERROR in counting lines" << endl;
@@ -179,32 +133,20 @@ int main( int argc, char *argv[] )
   timespent = new double [num_ftracers];
 
   // open tracer file and read final positions 
-  ifstream file_final_tracers(sfile_final_tracers.c_str());
+  ifstream ifile_ftracer(filename_ftracer.c_str());
   
   for(i=0; i<num_ftracers; i++)
     {
-      file_final_tracers >> ftracer_lon[i] >> ftracer_lat[i] >> ftracer_depth[i]  >> timespent[i] ;
+      ifile_ftracer >> ftracer_lon[i] >> ftracer_lat[i] >> ftracer_depth[i]  >> timespent[i] ;
     }
-  file_final_tracers.close();
+  ifile_ftracer.close();
 
   //////////////////// READ NETWORK GRID //////////////////
-  string sfile_network;
-  string snode_size;
-  snode_size="_nodesize";
-  
-  // Reconstruct name file
-  sfile_network= 
-    output_dir + 
-    sdomain_network + 
-    svelocity_field + 
-    sdepth + DoubletoInt(4, 0, start_depth) +
-    snode_size + DoubletoInt(4, 3,node_size) + 
-    postfixgrid;
 
-  ifstream file_network(sfile_network.c_str());
+  ifstream ifile_network(filename_upnetwork.c_str());
 
   // Count number of lines = total number of nodes
-  int num_nodes=countlines(sfile_network);
+  int num_nodes=CountLines(filename_upnetwork.c_str());
   if(num_nodes < 0)
     {
       cout << "ERROR in counting lines" << endl;
@@ -212,7 +154,7 @@ int main( int argc, char *argv[] )
     }
 
   // Print total number of nodes to screen for debugging
-  if(verbose == 1) 
+  if(verbose == 1)
     {
       cout <<" Total number of nodes = "<< num_nodes << endl;
     }
@@ -232,7 +174,7 @@ int main( int argc, char *argv[] )
   int count,j;
   
   // Constant latitudinal widht of nodes
-  delta_node_lat = node_size;
+  delta_node_lat = nodesize;
   
   // Compute node index (integer) maximum (upper limits) for latitude
   max_iindex_node = (int) ((network_tr_lat-network_ll_lat)/delta_node_lat);
@@ -264,7 +206,7 @@ int main( int argc, char *argv[] )
   for (i = 0; i < max_iindex_node; i++)
     {
       // Read (line by line) of network grid file
-      file_network >> node_lon >> node_lat >> delta_lon >> land_ratio[count];
+      ifile_network >> node_lon >> node_lat >> delta_lon >> land_ratio[count];
 
       // Latitudinal line per latitudinal line (because irregular grid in longitude)
       delta_node_lon[i] = delta_lon;
@@ -291,7 +233,7 @@ int main( int argc, char *argv[] )
       for (j = 1; j < max_jindex_node[i]; j++)
 	{
 	  // Read (another line) of network grid file
-	  file_network >> node_lat >> node_lon >> delta_lon >> land_ratio[count];
+	  ifile_network >> node_lat >> node_lon >> delta_lon >> land_ratio[count];
 	  node_index[i][j] = count;
 	  // Add 1 at the end because node index starts at 0
 	  count++;
@@ -312,7 +254,7 @@ int main( int argc, char *argv[] )
     }
 
   // Close file
-  file_network.close();
+  ifile_network.close();
 
   ///////////////////////////////////// TRANSPORT MATRIX CALCULATION ////////////////////////////
   cout << "TRANSPORT MATRIX CALCULATION" << endl;
@@ -386,7 +328,7 @@ int main( int argc, char *argv[] )
 
 
       // Check if the particle reached the final depth 
-      if((ftracer_depth[trac_index]>final_depth))
+      if((ftracer_depth[trac_index]>finaldepth))
 	{
 	  if((ftracer_lat[trac_index]<= network_ll_lat)||(ftracer_lat[trac_index]>=network_tr_lat))
 	    {
@@ -431,24 +373,7 @@ int main( int argc, char *argv[] )
   
   ////////////////////////////////// OUTPUT WRITING ///////////////////////
 
-  string sfile_matrix;
-  
-  // Construct name file
-  sfile_matrix=
-    output_dir + 
-    sdomain_network + 
-    svelocity_field + 
-    sidepth + DoubletoInt(4, 0, start_depth) + 
-    sfdepth + DoubletoInt(4, 0, final_depth) + 
-    sparticle_latspacing + DoubletoInt(5,4,particle_latspacing) +
-    snode_size + DoubletoInt(4, 3,node_size) + 
-    sparticle_latspacing + DoubletoInt(5,4,particle_latspacing) +
-    sstart_date + DoubletoInt(2,0,start_date.day) + DoubletoInt(2,0,start_date.month) + DoubletoInt(4,0,start_date.year) +
-    svsinking + DoubletoInt(3,0,v_sinking) +
-    sint_step +  DoubletoInt(4,2,int_step) +
-    postfixmatrix;
-
-  ofstream file_matrix(sfile_matrix.c_str());
+  ofstream ofile_matrix(filename_matrix.c_str());
   int sum_tracers = 0;
  
   // Write only non-null elements of the matrix in the output file
@@ -458,11 +383,13 @@ int main( int argc, char *argv[] )
 	{
 	  if(trans_matrix[i][j]>0)
 	    {
-	      file_matrix << i <<" "<< j <<" "<< trans_matrix[i][j]<<" "<<sum_timespent[i][j] <<" "<< sum2_timespent[i][j]<<endl;
+	      ofile_matrix << i <<" "<< j <<" "<< trans_matrix[i][j]<<" "<<sum_timespent[i][j] <<" "<< sum2_timespent[i][j]<<endl;
 	      sum_tracers+=trans_matrix[i][j];
 	    }
 	}
     }
+
+  ofile_matrix.close();  // Close file
   
   // Print to screen sum of all elements of the matrix
   if(verbose == 1) 
@@ -474,9 +401,6 @@ int main( int argc, char *argv[] )
       cout << " Total sum of outer lon particles = " << num_outer_lon_particles <<endl;
       cout << " Total sum of sticky particles = " << num_sticky_particles <<endl;
     }
-
-  // Close file
-  file_matrix.close();
 
   //DEALLOCATE MEMORY
   delete[] itracer_lat;

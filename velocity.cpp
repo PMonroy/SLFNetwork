@@ -11,6 +11,9 @@ using namespace std;
 
 #include "velocity.h"
 
+// EXTERN VARIABLES
+extern char velocitydir[];
+
 #define INTERPOLATION(Vint, V, j, alpha, beta)	\
   Vint.x = alpha * V[(j)].x + beta * V[(j)+1].x; \
   Vint.y = alpha * V[(j)].y + beta * V[(j)+1].y; \
@@ -32,7 +35,7 @@ vectorXYZ ****vfield;
 int **land_mask;
 double **bathymetry;
 
-int LoadVelocityGrid(date rdate)
+int LoadVelocityGrid(date rdate, char velocitydir[])
 {
   int i,j,q; // loop indices
 
@@ -40,7 +43,7 @@ int LoadVelocityGrid(date rdate)
   NcError err(NcError::verbose_nonfatal);
 
   // Open the first Netcdf file
-  sprintf(ncfile, "%sextract_roms_avg_Y%1uM%1u.nc.1",ncdir, rdate.year,rdate.month);
+  sprintf(ncfile, "%sextract_roms_avg_Y%1uM%1u.nc.1",velocitydir, rdate.year,rdate.month);
   cout << "Reading the netcdf file: " << ncfile;
   
   NcFile dataFile(ncfile, NcFile::ReadOnly);  
@@ -163,7 +166,7 @@ void FreeMemoryVelocityGrid()
     }
 }
 
-int LoadVelocities(date start_date, int tau)
+int LoadVelocities(date start_date, int tau, char velocitydir[])
 {
 
   int t,i,j,k;
@@ -175,7 +178,7 @@ int LoadVelocities(date start_date, int tau)
   NcError err(NcError::verbose_nonfatal);
 
   // Open the first Netcdf file
-  sprintf(ncfile, "%sextract_roms_avg_Y%1uM%1u.nc.1",ncdir, start_date.year,start_date.month);
+  sprintf(ncfile, "%sextract_roms_avg_Y%1uM%1u.nc.1",velocitydir, start_date.year,start_date.month);
   cout << "Reading first netcdf file: " << ncfile;
   
   NcFile dataFile(ncfile, NcFile::ReadOnly);  
@@ -230,16 +233,8 @@ int LoadVelocities(date start_date, int tau)
   date tdate;
   unsigned int count, sum_count;
   
-  if(int_step >= 0)
-    {
-      start_time = DATE_TO_TIME(start_date);
-      final_time = start_time + tau  + 1;
-    }
-  else
-    {
-      final_time = 1 + DATE_TO_TIME(start_date);
-      start_time = final_time - tau - 1;
-    }
+  start_time = DATE_TO_TIME(start_date);
+  final_time = start_time + tau  + 1;
 
   time = start_time;
   sum_count = 0;
@@ -253,7 +248,7 @@ int LoadVelocities(date start_date, int tau)
       if((time + count) > final_time)
 	count = final_time - time;
       
-      sprintf(ncfile, "%sextract_roms_avg_Y%1uM%1u.nc.1",ncdir, tdate.year,tdate.month);
+      sprintf(ncfile, "%sextract_roms_avg_Y%1uM%1u.nc.1",velocitydir, tdate.year,tdate.month);
       cout << "reading netcdf file: " <<ncfile <<" start day="<< tdate.day <<" number of days=" << count;
 
       NcFile dataFile(ncfile, NcFile::ReadOnly);
@@ -295,10 +290,7 @@ int LoadVelocities(date start_date, int tau)
 	return NC_ERR;
 
       dataFile.close();
-      if (verbose == 1)
-	{
-	  cout << " OK" << endl;
-	}
+      cout << " OK" << endl;
       
       time += count;
       sum_count += count;
@@ -357,7 +349,7 @@ int LoadVelocities(date start_date, int tau)
   return 0;
 }
 
-void FreeMemoryVelocities() 
+void FreeMemoryVelocities(int tau) 
 {
   
   int t,i,j;

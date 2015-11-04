@@ -1,3 +1,12 @@
+#Emacs recovery files
+*~
+# Output files
+*.itrac
+*.ftrac
+*.grid
+*.vtk
+*.log
+
 # Compiled Object files
 *.slo
 *.lo
