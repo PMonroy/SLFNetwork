@@ -147,7 +147,7 @@ int main( int argc, char *argv[] )
 
   //////////////////////////////////////
 
-  int (*velocity)(double t,vectorXYZ point, vectorXYZ *vint);
+  int (*velocity)(double ,vectorXYZ , vectorXYZ* );
 
   //velocity = GetVelocity; // choice of velocity equation = veloctiy field
   velocity = FlowVplusSinkV; // choice of velocity particle = flow velocity + sinking velocity
@@ -188,7 +188,7 @@ int main( int argc, char *argv[] )
   FreeMemoryVelocities(tau);
   return 0;
 }
-int RK4(double t0, vectorXYZ *point, int (*velocity)(double t,vectorXYZ point, vectorXYZ *vint))
+int RK4(double t0, vectorXYZ *point, int (*velocity)(double ,vectorXYZ , vectorXYZ* ))
 {
   vectorXYZ point2,point3,point4;
   vectorXYZ v1,v2,v3,v4;
@@ -204,47 +204,47 @@ int RK4(double t0, vectorXYZ *point, int (*velocity)(double t,vectorXYZ point, v
   /* Calculate V1: */
   if(velocity(t0,*point, &v1))
     return 1;
-  h = R_EARTH * cos(RADS((*point).y));
+  h = R_EARTH * cos(RADS(point->y));
   v1.x = DEGREE(v1.x / h ); // rads velocity
   v1.y = DEGREE(v1.y / R_EARTH); // rads velocity
-  v1.z = v1.z; //adding sinking velocity
+
 
   /* Calculate V2: */
   t = t0 + tstep2;
-  TRIAL_POINT(point2, (*point), tstep2, v1);
+  point2 = *point + (tstep2 * v1);
+
   if(velocity(t,point2, &v2))
     return 1;
 
   h = R_EARTH * cos(RADS(point2.y));
   v2.x = DEGREE(v2.x / h); // rads velocity
   v2.y = DEGREE(v2.y / R_EARTH); // rads velocity
-  v2.z = v2.z;
+
 
   /* Calculate V3: */
-  TRIAL_POINT(point3, (*point), tstep2, v2);
+  point3 = *point + (tstep2 * v2);
+
   if(velocity(t,point3, &v3))
     return 1;
 
   h = R_EARTH * cos(RADS(point3.y));
   v3.x = DEGREE(v3.x / h);
   v3.y = DEGREE(v3.y / R_EARTH);
-  v3.z = v3.z;
+
   
   /* Calculate V4: */
   t = t0 + intstep;
-  TRIAL_POINT(point4, (*point), intstep, v3);
+  point4 = *point + (intstep * v3);
+
   if(velocity(t,point4, &v4))
     return 1;
 
   h = R_EARTH * cos(RADS(point4.y));
   v4.x = DEGREE(v4.x / h);
   v4.y = DEGREE(v4.y / R_EARTH);
-  v4.z = v4.z;
 
-  /* Calculate Final point */
-  point->x = point->x + tstep6 * (v1.x + v4.x + 2.0 * (v2.x + v3.x));
-  point->y = point->y + tstep6 * (v1.y + v4.y + 2.0 * (v2.y + v3.y));
-  point->z = point->z + tstep6 * (v1.z + v4.z + 2.0 * (v2.x + v3.z));
+  /* Calculate Final point */  
+  *point += (tstep6 * (v1 + v4 + 2.0*v2 + 2.0*v3));
 
   return 0;
 }

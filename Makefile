@@ -22,7 +22,7 @@ matrix_construction.o: matrix_construction.cpp parameters.o
 test.o: test.cpp parameters.o
 	$(CC) -c test.cpp
 
-velocity.o: velocity.cpp velocity.h vectorXYZ.h date.h
+velocity.o: velocity.cpp vectorXYZ.o velocity.h date.h
 	$(CC) -c velocity.cpp -lnetcdf_c++
 
 ioutil.o: ioutil.cpp ioutil.h
@@ -31,13 +31,16 @@ ioutil.o: ioutil.cpp ioutil.h
 VTK.o: VTK.cpp VTK.h
 	$(CC) -c VTK.cpp
 
-grid_construction.out: grid_construction.o parameters.o velocity.o VTK.o ioutil.o
-	$(CC)  parameters.o grid_construction.o velocity.o VTK.o ioutil.o -o grid_construction.out $(LIBS)
+vectorXYZ.o: vectorXYZ.cpp vectorXYZ.h
+	$(CC) -c vectorXYZ.cpp
 
-lagrangian_engine.out: lagrangian_engine.o parameters.o velocity.o ioutil.o
-	$(CC)  parameters.o lagrangian_engine.o velocity.o ioutil.o -o lagrangian_engine.out $(LIBS) -fopenmp
+grid_construction.out: grid_construction.o parameters.o velocity.o VTK.o ioutil.o vectorXYZ.o
+	$(CC)  parameters.o grid_construction.o velocity.o vectorXYZ.o VTK.o ioutil.o -o grid_construction.out $(LIBS)
 
-matrix_construction.out: matrix_construction.o parameters.o ioutil.o
+lagrangian_engine.out: lagrangian_engine.o parameters.o velocity.o ioutil.o vectorXYZ.o
+	$(CC)  parameters.o lagrangian_engine.o vectorXYZ.o velocity.o ioutil.o -o lagrangian_engine.out $(LIBS) -fopenmp
+
+matrix_construction.out: matrix_construction.o parameters.o ioutil.o 
 	$(CC)  matrix_construction.o parameters.o ioutil.o -o matrix_construction.out
 
 test.out: test.o parameters.o ioutil.o
