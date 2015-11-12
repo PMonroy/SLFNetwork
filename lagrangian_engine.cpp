@@ -147,12 +147,6 @@ int main( int argc, char *argv[] )
 
   //////////////////////////////////////
 
-<<<<<<< HEAD
-  // Parallelizing the code for computing trajectories 
-
-#pragma omp parallel for default(shared) private(t)
-for (i = 0; i < numtracers; i++)
-=======
   int (*velocity)(double t,vectorXYZ point, vectorXYZ *vint);
 
   //velocity = GetVelocity; // choice of velocity equation = veloctiy field
@@ -161,7 +155,6 @@ for (i = 0; i < numtracers; i++)
 #pragma omp parallel for default(shared) private(t) // Parallelizing the code for computing trajectories
 
   for (i = 0; i < numtracers; i++)
->>>>>>> improvevelocity
     {
       for(t=0; t<tau-intstep; t+=intstep)
 	{	
