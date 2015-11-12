@@ -11,15 +11,10 @@ using namespace std;
 
 #include "velocity.h"
 
-// EXTERN VARIABLES
-extern char velocitydir[];
-
 #define INTERPOLATION(Vint, V, j, alpha, beta)	\
   Vint.x = alpha * V[(j)].x + beta * V[(j)+1].x; \
   Vint.y = alpha * V[(j)].y + beta * V[(j)+1].y; \
   Vint.z = alpha * V[(j)].z + beta * V[(j)+1].z	
-
-
 
 // Return this code to the OS in case of failure.
 static const int NC_ERR = 2;
