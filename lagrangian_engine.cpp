@@ -149,6 +149,7 @@ int main( int argc, char *argv[] )
   //////////////////////////////////////
 
   // Parallelizing the code for computing trajectories 
+
 #pragma omp parallel for default(shared) private(t)
 for (i = 0; i < numtracers; i++)
     {
@@ -163,7 +164,7 @@ for (i = 0; i < numtracers; i++)
 	  timespent[i] = t;
 	}
     }
-
+  
   // open output file (tracer final positions) 
   ofstream ofile_ftracer(filename_ftracer.c_str());// open tracer file 
   // write final positions
