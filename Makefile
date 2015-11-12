@@ -5,7 +5,7 @@ CC=$(CC_MONO)
 LIBS= -lnetcdf_c++
 RM=rm -rf
 
-all: grid_construction.out lagrangian_engine.out matrix_construction.out
+all: grid_construction.out lagrangian_engine.out matrix_construction.out test.out
 
 parameters.o: parameters.cpp ioutil.o parameters.h date.h
 	$(CC) -c parameters.cpp
@@ -18,6 +18,9 @@ lagrangian_engine.o: lagrangian_engine.cpp parameters.o velocity.o
 
 matrix_construction.o: matrix_construction.cpp parameters.o
 	$(CC) -c matrix_construction.cpp
+
+test.o: test.cpp parameters.o
+	$(CC) -c test.cpp
 
 velocity.o: velocity.cpp velocity.h vectorXYZ.h date.h
 	$(CC) -c velocity.cpp -lnetcdf_c++
@@ -36,6 +39,9 @@ lagrangian_engine.out: lagrangian_engine.o parameters.o velocity.o ioutil.o
 
 matrix_construction.out: matrix_construction.o parameters.o ioutil.o
 	$(CC)  matrix_construction.o parameters.o ioutil.o -o matrix_construction.out
+
+test.out: test.o parameters.o ioutil.o
+	$(CC)  test.o parameters.o ioutil.o -o test.out
 
 clean:
 	$(RM) *.o 

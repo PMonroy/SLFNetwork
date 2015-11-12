@@ -13,16 +13,16 @@ verbose=1
 # SPECIFIC PARAMETERS
 #################################################################################
 # 4) Node latitudinal size (in decimal degree)
-nodesize=0.125
+nodesize=0.166666666666666
 # 5) Latitudinal spacing of particles seeding 
-particlespacing=0.01
+particlespacing=0.0166666666666
 # 6) Initial depth (meters)
 startdepth=25
 # 7) Final depth (meters)
 finaldepth=1000
 # 8) startdate = starting date of experiment (dd-mm-yyyy)
-startdate=01-01-0009
+startdate=01-01-0008
 # 10) Integration time step (in days)
 intstep=0.25
 # 11) Sinking Velocity (in meters/days, downwards)
-vsink=50
+vsink=100

@@ -35,7 +35,7 @@ double network_tr_lat;
 double network_tr_lon;
 
 /* Configuration parameters*/
-char workingdir[] = "./";
+char workingdir[] = "/home/pmonroy/ESCOLA/RUNS/SLFNetwork/";
 
 // File names In/Outputs
 string filename_upnetwork;

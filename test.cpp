@@ -10,6 +10,7 @@
 using namespace std;
 #include "parameters.h" // Function to read parameters.dat
 #include "ioutil.h" 
+#include "vectorXYZ.h" 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // Declaring constants and extern variables
@@ -17,6 +18,7 @@ using namespace std;
 
 extern int verbose;
 extern double nodesize;
+extern double startdepth;
 extern double finaldepth;
 extern int tau;
 extern double network_ll_lat;
@@ -33,6 +35,13 @@ extern string filename_matrix;
 double pig=acos(-1.0);
 double pig180=(pig/180.0);
 
+/////////////////////////////////////
+
+struct rectangle {
+  struct vectorXYZ center;
+  struct vectorXYZ tr;
+  struct vectorXYZ ll;
+};
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////// Prototype-functions used in the main code (written below, at the end of the main code)
@@ -143,7 +152,8 @@ int main( int argc, char *argv[] )
 
   //////////////////// READ NETWORK GRID //////////////////
 
-  ifstream ifile_network(filename_upnetwork.c_str());
+  ifstream ifile_upnetwork(filename_upnetwork.c_str());
+  ifstream ifile_downnetwork(filename_downnetwork.c_str());
 
   // Count number of lines = total number of nodes
   int num_nodes=CountLines(filename_upnetwork.c_str());
@@ -159,9 +169,14 @@ int main( int argc, char *argv[] )
       cout <<" Total number of nodes = "<< num_nodes << endl;
     }
 
+  rectangle *node;
+  double *upland_ratio, *downland_ratio;
+  node = new rectangle [num_nodes];
+  upland_ratio = new double [num_nodes];
+  downland_ratio = new double [num_nodes];
+
+
   ///////////////////////////////////// NODE INDICES CALCULATION ////////////////////
-  double node_lon;
-  double node_lat;
   double delta_lon;
   double *land_ratio;
   double delta_node_lat;
@@ -206,8 +221,20 @@ int main( int argc, char *argv[] )
   for (i = 0; i < max_iindex_node; i++)
     {
       // Read (line by line) of network grid file
-      ifile_network >> node_lon >> node_lat >> delta_lon >> land_ratio[count];
+      ifile_upnetwork >> node[count].center.x >> node[count].center.y >> delta_lon >> upland_ratio[count];
+      ifile_downnetwork >> node[count].center.x >> node[count].center.y >> delta_lon >> downland_ratio[count];
 
+      node[count].center.z = startdepth;
+      
+      // finding two corners of the node from the center
+      node[count].ll.x = node[count].center.x - delta_lon/2.0;
+      node[count].ll.y = node[count].center.y - nodesize/2.0;
+      node[count].ll.z = startdepth;
+      
+      node[count].tr.x = node[count].center.x + delta_lon/2.0;
+      node[count].tr.y = node[count].center.y + nodesize/2.0;
+      node[count].tr.z = startdepth;
+      
       // Latitudinal line per latitudinal line (because irregular grid in longitude)
       delta_node_lon[i] = delta_lon;
       max_jindex_node[i] =  (int) ((network_tr_lon-network_ll_lon)/delta_node_lon[i]);
@@ -233,7 +260,20 @@ int main( int argc, char *argv[] )
       for (j = 1; j < max_jindex_node[i]; j++)
 	{
 	  // Read (another line) of network grid file
-	  ifile_network >> node_lat >> node_lon >> delta_lon >> land_ratio[count];
+	  ifile_upnetwork >> node[count].center.x >> node[count].center.y >> delta_lon >> upland_ratio[count];
+	  ifile_downnetwork >> node[count].center.x >> node[count].center.y >> delta_lon >> downland_ratio[count];
+
+	  node[count].center.z = startdepth;
+	  
+	  // finding two corners of the node from the center
+	  node[count].ll.x = node[count].center.x - delta_lon/2.0;
+	  node[count].ll.y = node[count].center.y - nodesize/2.0;
+	  node[count].ll.z = startdepth;
+	  
+	  node[count].tr.x = node[count].center.x + delta_lon/2.0;
+	  node[count].tr.y = node[count].center.y + nodesize/2.0;
+	  node[count].tr.z = startdepth;
+	  
 	  node_index[i][j] = count;
 	  // Add 1 at the end because node index starts at 0
 	  count++;
@@ -254,7 +294,8 @@ int main( int argc, char *argv[] )
     }
 
   // Close file
-  ifile_network.close();
+  ifile_upnetwork.close();
+  ifile_downnetwork.close();
 
   ///////////////////////////////////// TRANSPORT MATRIX CALCULATION ////////////////////////////
   cout << "TRANSPORT MATRIX CALCULATION" << endl;
@@ -373,9 +414,8 @@ int main( int argc, char *argv[] )
   
   ////////////////////////////////// OUTPUT WRITING ///////////////////////
 
-  ofstream ofile_matrix(filename_matrix.c_str());
-  int sum_tracers = 0;
- 
+
+  int sum_tracers = 0; 
   // Write only non-null elements of the matrix in the output file
 
   double average_time,variance_time;
@@ -387,13 +427,10 @@ int main( int argc, char *argv[] )
 	    {
 	      average_time = sum_timespent[i][j]/((double) trans_matrix[i][j]);
 	      variance_time = (sum2_timespent[i][j]/((double) trans_matrix[i][j])) - (average_time*average_time);
-	      ofile_matrix << i <<" "<< j <<" "<< trans_matrix[i][j]<<" "<< average_time <<" "<< variance_time <<endl;
 	      sum_tracers+=trans_matrix[i][j];
 	    }
 	}
     }
-
-  ofile_matrix.close();  // Close file
   
   // Print to screen sum of all elements of the matrix
   if(verbose == 1) 
@@ -406,7 +443,136 @@ int main( int argc, char *argv[] )
       cout << " Total sum of sticky particles = " << num_sticky_particles <<endl;
     }
 
+  //the vtk files
+
+  int released_particles;
+  int out_degree;
+
+  string filenamegridvtk = filename_matrix +  "Upnode.vtk";
+
+  ofstream fgridvtk(filenamegridvtk.c_str());// output vtk file 
+  fgridvtk << "# vtk DataFile Version 3.0" << endl;
+  fgridvtk <<  "vtk output" << endl;
+  fgridvtk <<  "ASCII " << endl;
+  fgridvtk << "DATASET POLYDATA" << endl;
+  fgridvtk << "POINTS "<< 4*num_nodes <<" float" << endl;
+  for(i = 0; i<num_nodes; i++ )
+    {
+      fgridvtk << node[i].ll.x <<" "<< node[i].ll.y <<" "<< startdepth*0.001 << endl;
+      fgridvtk << node[i].ll.x <<" "<< node[i].tr.y <<" "<< startdepth*0.001 << endl;
+      fgridvtk << node[i].tr.x <<" "<< node[i].tr.y <<" "<< startdepth*0.001 << endl;
+      fgridvtk << node[i].tr.x <<" "<< node[i].ll.y <<" "<< startdepth*0.001 << endl;
+    }
+  
+  fgridvtk << "POLYGONS  "<< num_nodes <<" "<< 5*num_nodes <<endl;
+  for(i = 0; i<num_nodes; i++)
+    {
+      fgridvtk <<"4 "<< 4*i <<" "<< 4*i+1<<" "<< 4*i+2<<" "<<4*i+3<< endl;
+    }
+  fgridvtk << "CELL_DATA "<< num_nodes <<endl;
+  fgridvtk << "SCALARS upland_ratio float"<<endl;
+  fgridvtk << "LOOKUP_TABLE default"<< endl;
+  for(i = 0; i<num_nodes; i++)
+    {
+     fgridvtk << upland_ratio[i] << endl;
+    }
+  fgridvtk << "SCALARS released_particles int"<<endl;
+  fgridvtk << "LOOKUP_TABLE default"<< endl;
+  for(i = 0; i<num_nodes; i++)
+    {
+      released_particles=0;
+      for(j=0; j<num_nodes; j++)
+	{
+	  if(trans_matrix[i][j]>0)
+	    {
+	      released_particles+=trans_matrix[i][j];	
+	    }	
+	}
+      fgridvtk << released_particles << endl;
+    }
+  fgridvtk << "SCALARS out_degree int"<<endl;
+  fgridvtk << "LOOKUP_TABLE default"<< endl;
+  for(i = 0; i<num_nodes; i++)
+    {
+      out_degree=0;
+      for(j=0; j<num_nodes; j++)
+	{
+	  if(i!=j && trans_matrix[i][j]>0)
+	    {
+	      out_degree+=1;	
+	    }	
+	}
+      fgridvtk << out_degree << endl;
+    }	
+  fgridvtk.close();
+
+  int settled_particles;
+  int in_degree;
+
+  string filenamedowngridvtk = filename_matrix +  "Downnode.vtk";
+
+  ofstream fdowngridvtk(filenamedowngridvtk.c_str());// output vtk file 
+
+  fdowngridvtk << "# vtk DataFile Version 3.0" << endl;
+  fdowngridvtk <<  "vtk output" << endl;
+  fdowngridvtk <<  "ASCII " << endl;
+  fdowngridvtk << "DATASET POLYDATA" << endl;
+  fdowngridvtk << "POINTS "<< 4*num_nodes <<" float" << endl;
+  for(i = 0; i<num_nodes; i++ )
+    {
+      fdowngridvtk << node[i].ll.x <<" "<< node[i].ll.y <<" "<< finaldepth*0.001 << endl;
+      fdowngridvtk << node[i].ll.x <<" "<< node[i].tr.y <<" "<< finaldepth*0.001 << endl;
+      fdowngridvtk << node[i].tr.x <<" "<< node[i].tr.y <<" "<< finaldepth*0.001 << endl;
+      fdowngridvtk << node[i].tr.x <<" "<< node[i].ll.y <<" "<< finaldepth*0.001 << endl;
+    }
+  
+  fdowngridvtk << "POLYGONS  "<< num_nodes <<" "<< 5*num_nodes <<endl;
+  for(i = 0; i<num_nodes; i++)
+    {
+      fdowngridvtk <<"4 "<< 4*i <<" "<< 4*i+1<<" "<< 4*i+2<<" "<<4*i+3<< endl;
+    }
+  fdowngridvtk << "CELL_DATA "<< num_nodes <<endl;
+  fdowngridvtk << "SCALARS downland_ratio float"<<endl;
+  fdowngridvtk << "LOOKUP_TABLE default"<< endl;
+  for(i = 0; i<num_nodes; i++)
+    {
+     fdowngridvtk << downland_ratio[i] << endl;
+    }
+  fdowngridvtk << "SCALARS settled_particles int"<<endl;
+  fdowngridvtk << "LOOKUP_TABLE default"<< endl;
+  for(i = 0; i<num_nodes; i++)
+    {
+      settled_particles=0.0;
+      for(j=0; j<num_nodes; j++)
+	{
+	  if(trans_matrix[j][i]>0)
+	    {
+	      settled_particles+=trans_matrix[j][i];
+	    }	
+	}
+      fdowngridvtk << settled_particles << endl;
+      
+    }
+  fdowngridvtk << "SCALARS in_degree int"<<endl;
+  fdowngridvtk << "LOOKUP_TABLE default"<< endl;
+  for(i = 0; i<num_nodes; i++)
+    {
+      in_degree=0;
+      for(j=0; j<num_nodes; j++)
+	{
+	  if(i!=j && trans_matrix[j][i]>0)
+	    {
+	      in_degree+=1;	
+	    }	
+	}
+      fdowngridvtk << in_degree << endl;
+    }	
+  fdowngridvtk.close();
+
   //DEALLOCATE MEMORY
+  delete[] node;
+  delete[] upland_ratio;
+  delete[] downland_ratio;
   delete[] itracer_lat;
   delete[] itracer_lon;
   delete[] ftracer_lat;
@@ -415,8 +581,8 @@ int main( int argc, char *argv[] )
   delete[] timespent;
   delete[] land_ratio;
   delete[] delta_node_lon;
-  delete[]  max_node_lon;
-  delete[]  max_jindex_node;
+  delete[] max_node_lon;
+  delete[] max_jindex_node;
 
   for (i=0; i<max_iindex_node; i++)
     {

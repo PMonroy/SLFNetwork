@@ -1,4 +1,11 @@
-#Emacs recovery files
+# Bash files
+mkparameters.sh
+
+# Folders
+MATLAB/
+MATLAB_CODE_VINCENT/
+
+# Emacs recovery files
 *~
 # Output files
 *.itrac
