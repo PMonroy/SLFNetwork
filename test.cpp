@@ -36,11 +36,11 @@ double pig=acos(-1.0);
 double pig180=(pig/180.0);
 
 /////////////////////////////////////
-
-struct rectangle {
-  struct vectorXYZ center;
-  struct vectorXYZ tr;
-  struct vectorXYZ ll;
+struct rectangle
+{
+  vectorXYZ center;
+  vectorXYZ tr;
+  vectorXYZ ll;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////////////////

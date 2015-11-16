@@ -4,13 +4,6 @@
 #include "date.h"
 #include "vectorXYZ.h"
 
-/* Transformations: */
-#define PI 3.1415926535898
-#define RADS(degree) (PI/180.0)*(degree)
-#define DEGREE(rads) (180.0/PI)*(rads)
-#define MU(x)  log(fabs((1.0/cos(x))+tan(x))) // x must be in radians. Result value in radians
-#define THETA(x) 1.56864 -1.99805 * atan(exp(-1.0*(x))) // x must be in radians. Result value in radians
-
 /* Structures: Esta estructura tiene que ser interna a velocity.cpp */
 struct  vectorIJK {
     int i;
@@ -35,8 +28,5 @@ extern double *vgrid_lon, *vgrid_lat, ****vgrid_depth;;
 extern vectorXYZ ****vfield;
 extern int **land_mask;
 extern double **bathymetry;
-
-
-#define SECONDS_DAY 86400.0
 
 #endif

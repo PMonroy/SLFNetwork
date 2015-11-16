@@ -12,6 +12,7 @@ using namespace std;
 
 #include "parameters.h" // Function to read parameters.dat
 #include "ioutil.h"
+#include "constants.h"
 #include "velocity.h" // Function to read velocities 
 #include "VTK.h"
 
@@ -39,17 +40,12 @@ extern string filename_upnetwork;
 extern string filename_downnetwork;
 extern string filename_itracer;
 
-//extern enum enum_parameters;
-
-double pig=acos(-1.0);
-double pig180=(pig/180.0);
-
-// structures
-
-struct rectangle {
-  struct vectorXYZ center;
-  struct vectorXYZ tr;
-  struct vectorXYZ ll;
+class  rectangle 
+{
+ public:
+  vectorXYZ center;
+  vectorXYZ tr;
+  vectorXYZ ll;
   double land_ratio;
 };
 
@@ -165,7 +161,7 @@ int main( int argc, char *argv[] )
   latmax = network_tr_lat - (delta_lat/2.0);
   for(lat=latmin; lat<latmax; lat+=delta_lat)
     {
-      delta_lon=nodesize/(cos(lat*pig180));
+      delta_lon=nodesize/(cos(rads*lat));
       lonmin = network_ll_lon + (delta_lon/2.0);
       lonmax = network_tr_lon - (delta_lon/2.0);
       
@@ -328,7 +324,7 @@ int main( int argc, char *argv[] )
   for(lat=latmin; lat<latmax; lat+=delta_lat)
     {
       
-      delta_lon=particlespacing/(cos(lat*pig180));         
+      delta_lon=particlespacing/(cos(rads*lat));         
 
       for(lon=lonmin; lon<lonmax; lon+=delta_lon)
 	{

@@ -50,7 +50,9 @@ string postfixitracer = ".itrac";
 string postfixftracer = ".ftrac";
 string postfixmatrix = ".matrix";
 
-char velocitydir[] = "/data/geo/escola/roms_benguela/";
+//char velocitydir[] = "/data/geo/escola/roms_benguela/";
+char velocitydir[] = "/scratch/pmonroy/";
+
 date reference_date = {8,  //year
 		       1,  //month
 		       1,  //day

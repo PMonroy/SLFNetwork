@@ -6,15 +6,12 @@
 #include <cmath>
 #include <vector>
 #include <fstream>
+#include <omp.h>
 
 using namespace std;
 
 #include "velocity.h"
-
-#define INTERPOLATION(Vint, V, j, alpha, beta)	\
-  Vint.x = alpha * V[(j)].x + beta * V[(j)+1].x; \
-  Vint.y = alpha * V[(j)].y + beta * V[(j)+1].y; \
-  Vint.z = alpha * V[(j)].z + beta * V[(j)+1].z	
+#include "constants.h"
 
 // Return this code to the OS in case of failure.
 static const int NC_ERR = 2;
@@ -64,7 +61,7 @@ int LoadVelocityGrid(date rdate, char velocitydir[])
 
   // Degree resolution
   degree_resolution = 0.083333333f;
-  rad_resolution = RADS(degree_resolution);
+  rad_resolution = rads*degree_resolution;
 
   // Get pointers to the latitude and longitude variables. 
   NcVar *lonVar, *latVar;
@@ -205,10 +202,10 @@ int LoadVelocities(date start_date, int tau, char velocitydir[])
 
   double *h, *u, *v, *w;
 
-  h = new double [(tau+1)*nlon*nlat*ndepth];
-  u = new double [(tau+1)*nlonu*nlat*ndepth];
-  v = new double [(tau+1)*nlon*nlatv*ndepth];
-  w = new double [(tau+1)*nlon*nlat*ndepth];
+  h = new double [(tau+2)*nlon*nlat*ndepth];
+  u = new double [(tau+2)*nlonu*nlat*ndepth];
+  v = new double [(tau+2)*nlon*nlatv*ndepth];
+  w = new double [(tau+2)*nlon*nlat*ndepth];
 
   int npoints_center,npoints_layer_center;
   int npoints_u,npoints_layer_u;
@@ -229,7 +226,7 @@ int LoadVelocities(date start_date, int tau, char velocitydir[])
   unsigned int count, sum_count;
   
   start_time = DATE_TO_TIME(start_date);
-  final_time = start_time + tau  + 1;
+  final_time = start_time + tau  + 2;
 
   time = start_time;
   sum_count = 0;
@@ -296,10 +293,10 @@ int LoadVelocities(date start_date, int tau, char velocitydir[])
   // Dynamically allocate velocity fields
 
 
-  vgrid_depth = new double ***[tau+1];
-  vfield = new vectorXYZ ***[tau+1];
+  vgrid_depth = new double ***[tau+2];
+  vfield = new vectorXYZ ***[tau+2];
 
-  for (t = 0; t < (tau+1); t++)
+  for (t = 0; t < (tau+2); t++)
     {
       vgrid_depth[t] = new double **[nlon];
       vfield[t] = new vectorXYZ **[nlon];
@@ -315,7 +312,9 @@ int LoadVelocities(date start_date, int tau, char velocitydir[])
 	}
     }
 
-  for(t = 0; t < tau+1; t++)
+#pragma omp parallel for default(shared) private(i,j,k)
+
+  for(t = 0; t < tau+2; t++)
     {
       for(i = 0; i < nlon; i++)
 	{
@@ -328,9 +327,8 @@ int LoadVelocities(date start_date, int tau, char velocitydir[])
 		  vfield[t][i][j][k].x= (*(u + t*npoints_u+k*npoints_layer_u+ j*nlonu+ i-(i==(nlon-1)))+*(u + t*npoints_u+k*npoints_layer_u+ j*nlonu + i-(i!=0)))/2.0;
 		  vfield[t][i][j][k].y= (*(v + t*npoints_v+k*npoints_layer_v+ (j-(j==(nlat-1)))*nlon+i)+*(v + t*npoints_v+k*npoints_layer_v+ (j-(j!=0))*nlon + i))/2.0;
 
-		  vfield[t][i][j][k].x = SECONDS_DAY *  vfield[t][i][j][k].x;
-		  vfield[t][i][j][k].y = SECONDS_DAY *  vfield[t][i][j][k].y;
-		  vfield[t][i][j][k].z = SECONDS_DAY *  vfield[t][i][j][k].z;
+		  vfield[t][i][j][k] = secondsday *  vfield[t][i][j][k];
+
 		}
 	    }
 	}
@@ -348,7 +346,7 @@ void FreeMemoryVelocities(int tau)
 {
   
   int t,i,j;
-   for(t = 0; t < tau+1; t++)
+   for(t = 0; t < tau+2; t++)
     {
       for(i = 0; i < nlon; i++)
 	{
@@ -497,9 +495,9 @@ int GetVelocity(double t,vectorXYZ point, vectorXYZ *vint)
 		  j = index[deltatime].j + deltaj;
 		  k = index[deltatime].k[deltai][deltaj] + deltak;
 		  h = time+deltatime;
-		  
-		  vgrid[q].x = vgrid_lon[i];
-		  vgrid[q].y = vgrid_lat[j];
+
+		  vgrid[q].x = rads*vgrid_lon[i];
+		  vgrid[q].y = log(fabs((1.0/cos(rads*vgrid_lat[j]))+tan(rads*vgrid_lat[j])));
 		  vgrid[q].z = vgrid_depth[h][i][j][k];
 		  
 		  vcomp[q] = vfield[h][i][j][k];
@@ -509,6 +507,9 @@ int GetVelocity(double t,vectorXYZ point, vectorXYZ *vint)
 	    }
 	}
     }
+
+  point.x = rads*point.x;
+  point.y = log(fabs((1.0/cos(rads*point.y))+tan(rads*point.y)));
 
   /* COAST CHECKING */
   if( (point.z < bathymetry[index[0].i  ][index[0].j  ]) &&
@@ -521,9 +522,9 @@ int GetVelocity(double t,vectorXYZ point, vectorXYZ *vint)
   for(q=0; q<16; q=q+2)
     {
       alpha = (vgrid[q+1].z - point.z)/(vgrid[q+1].z - vgrid[q].z);
-      beta = 1 - alpha;
-      INTERPOLATION(vcomp[q/2], vcomp, q, alpha, beta);
-      vgrid[q/2] = vgrid[q]; 
+      beta = 1 - alpha;      
+      vcomp[q>>1] = alpha * vcomp[q] + beta * vcomp[q+1];
+      vgrid[q>>1] = vgrid[q];     
     }
 
   /* Lat Interpolation: */
@@ -531,8 +532,8 @@ int GetVelocity(double t,vectorXYZ point, vectorXYZ *vint)
   beta = 1.0 - alpha;
   for(q = 0; q < 8; q=q+2)
     {
-      INTERPOLATION(vcomp[q/2], vcomp, q, alpha, beta);
-      vgrid[q/2] = vgrid[q];
+      vcomp[q>>1] = alpha * vcomp[q] + beta * vcomp[q+1];
+      vgrid[q>>1] = vgrid[q];
     }
 
   /* Phi Interpolation */
@@ -540,14 +541,14 @@ int GetVelocity(double t,vectorXYZ point, vectorXYZ *vint)
   beta = 1.0 - alpha;
   for(q = 0; q < 4; q=q+2)
     {
-      INTERPOLATION(vcomp[q/2], vcomp, q, alpha, beta);
-      vgrid[q/2] = vgrid[q];
+      vcomp[q>>1] = alpha * vcomp[q] + beta * vcomp[q+1];
+      vgrid[q>>1] = vgrid[q];
     }
 
   /* Time Interpolation: */ 
   alpha = ((double) (time + 1)) - t;  
   beta = 1.0 - alpha; 
-  INTERPOLATION(vcomp[0], vcomp, 0, alpha, beta);
+  vcomp[0] = alpha * vcomp[0] + beta * vcomp[1];
 
   /* Interpolated V*/
   *vint = vcomp[0];

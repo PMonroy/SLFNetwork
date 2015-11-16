@@ -25,4 +25,4 @@ startdate=01-01-0008
 # 10) Integration time step (in days)
 intstep=0.25
 # 11) Sinking Velocity (in meters/days, downwards)
-vsink=100
+vsink=50

@@ -11,6 +11,7 @@ using namespace std;
 #include "parameters.h" // Function to read parameters.dat
 #include "ioutil.h" 
 
+ 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // Declaring constants and extern variables
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -29,10 +30,6 @@ extern string filename_downnetwork;
 extern string filename_itracer;
 extern string filename_ftracer;
 extern string filename_matrix;
-
-double pig=acos(-1.0);
-double pig180=(pig/180.0);
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////// Prototype-functions used in the main code (written below, at the end of the main code)

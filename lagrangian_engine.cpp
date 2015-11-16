@@ -11,6 +11,7 @@
 using namespace std;
 #include "parameters.h" // Function to read parameters.dat
 #include "velocity.h" // Function to read velocities 
+#include "constants.h"
 #include "ioutil.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,13 +47,6 @@ void print_usage(const string me)
   cout << "Usage: " << me << " <file_parameters>" << endl << endl;
 }
 
-//Macros
-#define TRIAL_POINT(rtrial, r, alpha, V)	  \
-  rtrial.x = r.x + (alpha) * V.x;		  \
-  rtrial.y = r.y + (alpha) * V.y;		  \
-  rtrial.z = r.z + (alpha) * V.z
-
-#define R_EARTH 6371000.0
 /////////////////////////////////////////////////////////////////////////////////////////////////
 // MAIN CODE 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,9 +198,9 @@ int RK4(double t0, vectorXYZ *point, int (*velocity)(double ,vectorXYZ , vectorX
   /* Calculate V1: */
   if(velocity(t0,*point, &v1))
     return 1;
-  h = R_EARTH * cos(RADS(point->y));
-  v1.x = DEGREE(v1.x / h ); // rads velocity
-  v1.y = DEGREE(v1.y / R_EARTH); // rads velocity
+  h = rearth * cos(rads*(point->y));
+  v1.x = degrees*(v1.x / h ); // rads velocity
+  v1.y = degrees*(v1.y / rearth); // rads velocity
 
 
   /* Calculate V2: */
@@ -216,9 +210,9 @@ int RK4(double t0, vectorXYZ *point, int (*velocity)(double ,vectorXYZ , vectorX
   if(velocity(t,point2, &v2))
     return 1;
 
-  h = R_EARTH * cos(RADS(point2.y));
-  v2.x = DEGREE(v2.x / h); // rads velocity
-  v2.y = DEGREE(v2.y / R_EARTH); // rads velocity
+  h = rearth * cos(rads*(point2.y));
+  v2.x = degrees*(v2.x / h); // rads velocity
+  v2.y = degrees*(v2.y / rearth); // rads velocity
 
 
   /* Calculate V3: */
@@ -227,9 +221,9 @@ int RK4(double t0, vectorXYZ *point, int (*velocity)(double ,vectorXYZ , vectorX
   if(velocity(t,point3, &v3))
     return 1;
 
-  h = R_EARTH * cos(RADS(point3.y));
-  v3.x = DEGREE(v3.x / h);
-  v3.y = DEGREE(v3.y / R_EARTH);
+  h = rearth * cos(rads*(point3.y));
+  v3.x = degrees*(v3.x / h);
+  v3.y = degrees*(v3.y / rearth);
 
   
   /* Calculate V4: */
@@ -239,12 +233,12 @@ int RK4(double t0, vectorXYZ *point, int (*velocity)(double ,vectorXYZ , vectorX
   if(velocity(t,point4, &v4))
     return 1;
 
-  h = R_EARTH * cos(RADS(point4.y));
-  v4.x = DEGREE(v4.x / h);
-  v4.y = DEGREE(v4.y / R_EARTH);
+  h = rearth * cos(rads*(point4.y));
+  v4.x = degrees*(v4.x / h);
+  v4.y = degrees*(v4.y / rearth);
 
   /* Calculate Final point */  
-  *point += (tstep6 * (v1 + v4 + 2.0*v2 + 2.0*v3));
+  *point += (tstep6 * (v1 + v4 + 2.0*(v2 + v3)));
 
   return 0;
 }
